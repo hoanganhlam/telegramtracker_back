@@ -278,8 +278,8 @@ class Telegram:
         newest = Snapshot.objects.create(
             room=room,
             date=now,
-            members=info.full_chat.participants_count,
-            online=info.full_chat.online_count,
+            members=info.full_chat.participants_count or 0,
+            online=info.full_chat.online_count or 0,
             views=0,
             messages=0,
         )
