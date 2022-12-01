@@ -311,7 +311,7 @@ class Telegram:
             )
         elif room.desc is None:
             room.desc = full_chat.about
-        if chat_linked:
+        if chat_linked and chat_linked.username:
             associate, _ = Room.objects.get_or_create(
                 tg_id=chat_linked.id,
                 defaults={
