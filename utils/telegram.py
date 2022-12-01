@@ -349,8 +349,8 @@ class Telegram:
         room.meta["join_request"] = chat.join_request
         room.meta["gigagroup"] = chat.gigagroup
         room.meta["fake"] = chat.fake
-        room.members = full_chat.participants_count
-        room.online = full_chat.online_count
+        room.members = full_chat.participants_count or 0
+        room.online = full_chat.online_count or 0
         room.is_group = not chat.broadcast
         room.save()
         return room
