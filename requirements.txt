@@ -14,7 +14,7 @@ click==8.0.3
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-conda==4.10.1
+conda==4.3.16
 conda-package-handling
 cryptography==38.0.3
 defusedxml==0.7.1
