@@ -1,6 +1,6 @@
 from django.db import models
 from base.interface import BaseModel, HasIDString
-from media.models import Media
+from media.models import Media, validate_file_size, path_and_rename
 from django.utils import timezone
 from django.contrib.auth.models import User
 
@@ -14,12 +14,30 @@ class Property(BaseModel, HasIDString):
         unique_together = [['id_string', 'taxonomy']]
 
 
+class Sticker(BaseModel, HasIDString):
+    tg_id = models.CharField(max_length=100, db_index=True)
+    desc = models.CharField(max_length=600, blank=True, null=True)
+    tags = models.ManyToManyField(Property, related_name="stickers", blank=True)
+    user = models.ForeignKey(User, related_name="stickers", on_delete=models.SET_NULL, null=True, blank=True)
+    count = models.IntegerField(default=0)
+    is_archived = models.BooleanField(default=False)
+    is_official = models.BooleanField(default=False)
+    is_animated = models.BooleanField(default=False)
+    is_video = models.BooleanField(default=False)
+
+
+class StickerItem(BaseModel):
+    sticker = models.ForeignKey(Sticker, related_name="sticker_items", on_delete=models.CASCADE)
+    tg_id = models.CharField(max_length=100, db_index=True)
+    path = models.FileField(upload_to=path_and_rename, max_length=500, validators=[validate_file_size])
+
+
 class Account(BaseModel, HasIDString):
     tg_id = models.CharField(max_length=100, db_index=True)
     tg_username = models.CharField(max_length=256, null=True, blank=True)
     tg_name = models.CharField(max_length=256, null=True, blank=True)
     user = models.ForeignKey(User, related_name="accounts", on_delete=models.SET_NULL, null=True, blank=True)
-    media = models.ForeignKey(Media, related_name="accounts", on_delete=models.SET_NULL, null=True, blank=True)
+    photo = models.FileField(upload_to=path_and_rename, max_length=500, validators=[validate_file_size])
     raw = models.JSONField(null=True, blank=True)
     joined = models.DateTimeField(null=True, blank=True)
 
@@ -40,7 +58,8 @@ class Room(BaseModel):
     messages = models.IntegerField(default=0)
 
     is_group = models.BooleanField(null=True, blank=True)
-    media = models.ForeignKey(Media, related_name="rooms", on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(User, related_name="rooms", on_delete=models.SET_NULL, null=True, blank=True)
+    photo = models.FileField(upload_to=path_and_rename, max_length=500, validators=[validate_file_size])
     associate = models.ForeignKey(
         "self", related_name="associated_rooms", on_delete=models.SET_NULL, null=True,
         blank=True
@@ -64,6 +83,7 @@ class Participant(BaseModel):
     is_admin = models.BooleanField(default=False)
     rank = models.CharField(default="member", null=True, blank=True, max_length=50)
     roles = models.JSONField(null=True, blank=True)
+    date = models.DateTimeField(default=timezone.now)
 
     inviter = models.ForeignKey(
         Account, related_name="inviter_participants",

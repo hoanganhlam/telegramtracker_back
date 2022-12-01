@@ -1,4 +1,5 @@
 import datetime
+import asyncio
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets, permissions, generics
@@ -12,6 +13,13 @@ from main import models
 from media.models import Media
 from django_filters import rest_framework as filters
 from django_filters import DateTimeFromToRangeFilter
+from utils.telegram import Telegram, get_batch
+from asgiref.sync import sync_to_async, async_to_sync
+
+from pyrogram.raw.types import InputPeerChannel
+from pyrogram import Client
+from pyrogram.raw.types.messages import FoundStickerSets, ChatFull
+from pyrogram.raw import functions
 
 
 def make_account(item):
@@ -240,6 +248,116 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
         return Response(serializer.data)
 
 
+class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
+    models = models.Sticker
+    queryset = models.objects.order_by('-id')
+    serializer_class = serializers.StickerSerializer
+    pagination_class = pagination.Pagination
+    filter_backends = [OrderingFilter]
+    lookup_field = 'id_string'
+
+
+@sync_to_async
+def save_room(chat_full: ChatFull):
+    full_chat = chat_full.full_chat
+    chat = None
+    chat_linked = None
+    for item in chat_full.chats:
+        if item.id == full_chat.id:
+            chat = item
+        elif full_chat.linked_chat_id == item.id:
+            chat_linked = item
+    if chat is None:
+        return None
+    room = models.Room.objects.filter(tg_id=full_chat.id).first()
+    if room is None:
+        room = models.Room.objects.create(
+            tg_id=chat.id,
+            id_string=chat.username,
+            name=chat.title,
+            batch=get_batch(),
+            desc=full_chat.about
+        )
+    elif room.desc is None:
+        room.desc = full_chat.about
+    if chat_linked and chat_linked.username:
+        associate, _ = models.Room.objects.get_or_create(
+            tg_id=chat_linked.id,
+            defaults={
+                "id_string": chat_linked.username,
+                "name": chat_linked.title,
+                "batch": get_batch()
+            }
+        )
+        room.associate = associate
+    if room.meta is None:
+        room.meta = {}
+    room.meta["can_view_participants"] = full_chat.can_view_participants
+    room.meta["can_set_username"] = full_chat.can_set_username
+    room.meta["can_set_stickers"] = full_chat.can_set_stickers
+    room.meta["can_set_location"] = full_chat.can_set_location
+    room.meta["can_view_stats"] = full_chat.can_view_stats
+    room.meta["can_view_stats"] = full_chat.can_view_stats
+    room.meta["broadcast"] = chat.broadcast
+    room.meta["verified"] = chat.verified
+    room.meta["megagroup"] = chat.megagroup
+    room.meta["restricted"] = chat.restricted
+    room.meta["signatures"] = chat.signatures
+    room.meta["scam"] = chat.scam
+    room.meta["join_request"] = chat.join_request
+    room.meta["gigagroup"] = chat.gigagroup
+    room.meta["fake"] = chat.fake
+    room.members = full_chat.participants_count or 0
+    room.online = full_chat.online_count or 0
+    room.is_group = not chat.broadcast
+    room.save()
+    return room
+
+
+@api_view(['GET'])
+def get_chat(request):
+    async def main(username):
+        tg = Telegram()
+        async with tg.app:
+            try:
+                peer = await tg.app.resolve_peer(username)
+            except Exception as e:
+                print(e)
+                return None, 0
+            info = await tg.app.invoke(
+                functions.channels.GetFullChannel(
+                    channel=peer
+                )
+            )
+            r = await tg.app.invoke(
+                functions.messages.GetHistory(
+                    peer=peer,
+                    offset_id=0,
+                    offset_date=0,
+                    add_offset=0,
+                    limit=1,
+                    max_id=0,
+                    min_id=0,
+                    hash=0
+                )
+            )
+            return await save_room(info), r.count
+
+    room = models.Room.objects.filter(id_string=request.GET.get("username")).first()
+    if room is None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop = asyncio.get_event_loop()
+        room, count = loop.run_until_complete(main(request.GET.get("username")))
+        if room:
+            room.messages = count
+            if room.last_post_id == 0 or room.last_post_id is None:
+                room.last_post_id = room.messages
+                room.save()
+        loop.close()
+    return Response(serializers.DetailRoomSerializer(room).data)
+
+
 @api_view(['GET'])
 def get_posts(request):
     page_size = 6
@@ -256,16 +374,6 @@ def get_posts(request):
 @api_view(['POST'])
 def import_room(request):
     if request.data["pwd"] == "NINOFATHER":
-        # room: 'vietnamtradecoin',
-        # id: '1281256891',
-        # associate: '1128353406',
-        # date: 1668870454046,
-        # title: 'TradeCoinVietNam',
-        # desc: '',
-        # image: '',
-        # members: 97416,
-        # online: 4915
-        # participants: []
         room = make_room(request.data)
         date = datetime.datetime.fromtimestamp(request.data["date"] / 1000, tz=timezone.utc)
         # if room.last_crawl and date.timestamp() < (room.last_crawl + datetime.timedelta(hours=1)).timestamp():
@@ -292,12 +400,10 @@ def import_room(request):
             room.is_group = request.data["is_group"]
 
         # statistics
-        print("0_{}".format(room.name))
         room.members = request.data.get("members", 0)
         room.online = request.data.get("online", 0)
         room.views = request.data.get("views", 0)
         room.messages = request.data.get("messages", 0)
-        print("1_{}".format(room.name))
         room.save()
 
         # snapshot
@@ -363,7 +469,6 @@ def import_post(request):
                 replies=item.get("replies", 0)
             )
             check_last(room=room, post_id=item["id"], newest=newest, date=date)
-
 
             try:
                 models.Snapshot.objects.get(
