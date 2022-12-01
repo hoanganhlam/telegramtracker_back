@@ -5,6 +5,7 @@ from utils.telegram import Telegram
 class Command(BaseCommand):
     def handle(self, *args, **options):
         tg = Telegram(batch=0)
+        tg.app.start()
         # tg.test(sticker_id=110438048860209168, access_hash=-2483522464574001900)
         # tg.search_sticker("duck")
         tg.get_chat("OxalusAnnoucement")
