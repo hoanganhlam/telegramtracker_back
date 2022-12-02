@@ -60,7 +60,7 @@ BOTS = [
 def get_batch():
     batch = 1
     for n in range(200):
-        if Room.objects.filter(batch=batch).count() > 50:
+        if Room.objects.filter(batch=batch).count() > 25:
             batch = n
             break
     return batch
@@ -174,7 +174,6 @@ class Telegram:
             file_id = photo.file_id
         elif hasattr(photo, "id"):
             file_id = Photo._parse(self.app, photo).file_id
-            print(file_id)
         if file_id:
             file = self.app.download_media(file_id, in_memory=True)
             with open(fn, "wb") as binary_file:
@@ -195,7 +194,7 @@ class Telegram:
                 with open(fn, "wb") as binary_file:
                     binary_file.write(info.bytes)
             except FileMigrate as e:
-                print(e.value)
+                print(e.MESSAGE)
                 return None
         return pa
 
