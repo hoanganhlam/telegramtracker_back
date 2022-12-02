@@ -272,6 +272,7 @@ class Telegram:
             peer = self.app.resolve_peer(str(chat))
         except FloodWait as e:
             if e.value > 1000:
+                self.app.stop()
                 self.bot_index = self.bot_index + 1
                 self.app = self.make_client()
                 self.app.start()
@@ -448,7 +449,11 @@ class Telegram:
                 self.get_chat_messages(chat, room)
         except FloodWait as e:
             print("Wait: {}".format(e.value))
-            time.sleep(e.value + 1)
+            # time.sleep(e.value + 1)
+            self.app.stop()
+            self.bot_index = self.bot_index + 1
+            self.app = self.make_client()
+            self.app.start()
             self.get_chat_messages(chat, room)
         room.save()
 
