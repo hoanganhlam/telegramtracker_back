@@ -259,7 +259,21 @@ class Telegram:
                 time.sleep(e.value + 1)
             else:
                 self.remake_client()
-                self.get_sticker_packer(sticker_id, access_hash)
+            self.get_sticker_packer(sticker_id, access_hash)
+
+    def get_message_count(self, chat):
+        try:
+            return self.app.get_chat_history_count(chat)
+        except BotMethodInvalid as e:
+            print(e.MESSAGE)
+            return 0
+        except FloodWait as e:
+            if e.value < 100:
+                print("Waiting: {}".format(e.value))
+                time.sleep(e.value + 1)
+            else:
+                self.remake_client()
+            return self.get_message_count(chat)
 
     def search_sticker(self, query, page_hash=0):
         x = self.app.invoke(
@@ -278,54 +292,44 @@ class Telegram:
     def get_chat(self, chat):
         try:
             peer = self.app.resolve_peer(str(chat))
+            info = self.app.invoke(
+                functions.channels.GetFullChannel(
+                    channel=peer
+                )
+            )
+            # SAVE STICKER
+            if info.full_chat.stickerset:
+                self.get_sticker_packer(
+                    sticker_id=info.full_chat.stickerset.id,
+                    access_hash=info.full_chat.stickerset.access_hash
+                )
+            # SAVE ROOM
+            room = self.save_room(info)
+            room.messages = self.get_message_count(chat)
+            if room.last_post_id == 0 or room.last_post_id is None:
+                room.last_post_id = room.messages
+            room.save()
+            now = datetime.datetime.now(tz=timezone.utc)
+            newest = Snapshot.objects.create(
+                room=room,
+                date=now,
+                members=info.full_chat.participants_count or 0,
+                online=info.full_chat.online_count or 0,
+                views=0,
+                messages=0,
+            )
+            check_last(room=room, post_id=None, newest=newest, date=now)
+            self.save_participants(peer, room)
+            if not room.is_group:
+                self.get_chat_messages(peer, room)
+            return room
         except FloodWait as e:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 1)
             else:
                 self.remake_client()
-                self.get_chat(chat)
-        info = self.app.invoke(
-            functions.channels.GetFullChannel(
-                channel=peer
-            )
-        )
-        # SAVE STICKER
-        if info.full_chat.stickerset:
-            self.get_sticker_packer(
-                sticker_id=info.full_chat.stickerset.id,
-                access_hash=info.full_chat.stickerset.access_hash
-            )
-        # SAVE ROOM
-        room = self.save_room(info)
-        try:
-            room.messages = self.app.get_chat_history_count(chat)
-        except BotMethodInvalid as e:
-            print(e.MESSAGE)
-        except FloodWait as e:
-            if e.value < 100:
-                print("Waiting: {}".format(e.value))
-                time.sleep(e.value + 1)
-            else:
-                self.remake_client()
-                self.get_chat(chat)
-        if room.last_post_id == 0 or room.last_post_id is None:
-            room.last_post_id = room.messages
-        room.save()
-        now = datetime.datetime.now(tz=timezone.utc)
-        newest = Snapshot.objects.create(
-            room=room,
-            date=now,
-            members=info.full_chat.participants_count or 0,
-            online=info.full_chat.online_count or 0,
-            views=0,
-            messages=0,
-        )
-        check_last(room=room, post_id=None, newest=newest, date=now)
-        self.save_participants(peer, room)
-        if not room.is_group:
-            self.get_chat_messages(peer, room)
-        return room
+            return self.get_chat(chat)
 
     def save_room(self, chat_full: ChatFull):
         full_chat = chat_full.full_chat
@@ -461,14 +465,14 @@ class Telegram:
             if count_message > 1:
                 time.sleep(2)
                 self.get_chat_messages(chat, room)
+            room.save()
         except FloodWait as e:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 1)
             else:
                 self.remake_client()
-                self.get_chat_messages(chat, room)
-        room.save()
+            self.get_chat_messages(chat, room)
 
     def save_participants(self, chat: InputChannel, room: Room):
         try:
@@ -508,7 +512,7 @@ class Telegram:
                 time.sleep(e.value + 1)
             else:
                 self.remake_client()
-                self.save_participants(chat, room)
+            self.save_participants(chat, room)
 
     def monitor(self, batch):
         for item in Room.objects.filter(batch=batch):
