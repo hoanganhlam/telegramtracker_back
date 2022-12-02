@@ -154,7 +154,8 @@ class Telegram:
         if hasattr(photo, "file_id"):
             file_id = photo.file_id
         elif hasattr(photo, "id"):
-            file_id = Photo._parse(photo).file_id
+            file_id = Photo._parse(self.app, photo).file_id
+            print(file_id)
         if file_id:
             file = self.app.download_media(file_id, in_memory=True)
             with open(fn, "wb") as binary_file:
@@ -330,7 +331,7 @@ class Telegram:
         if room.meta is None:
             room.meta = {}
         if not room.photo and chat.photo:
-            room.photo = self.save_photo(chat.photo, peer=InputPeerChannel(
+            room.photo = self.save_photo(full_chat.chat_photo, peer=InputPeerChannel(
                 channel_id=chat.id,
                 access_hash=chat.access_hash
             ))

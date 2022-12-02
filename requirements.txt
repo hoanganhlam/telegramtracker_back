@@ -1,9 +1,8 @@
 amqp==5.0.9
 asgiref==3.5.2
-backports.zoneinfo==0.2.1
+backports.zoneinfo;python_version<"3.9"
 beautifulsoup4==4.11.1
 billiard==3.6.4.0
-brotlipy==0.7.0
 celery==5.2.3
 certifi==2022.9.24
 cffi==1.15.1
