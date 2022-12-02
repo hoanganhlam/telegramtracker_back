@@ -274,6 +274,9 @@ class Telegram:
             else:
                 self.remake_client()
             return self.get_message_count(chat)
+        except Exception as e:
+            print(e)
+            return 0
 
     def search_sticker(self, query, page_hash=0):
         x = self.app.invoke(
