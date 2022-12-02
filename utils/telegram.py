@@ -29,8 +29,6 @@ BOTS = [
         "5931254056:AAHFSc-7f4BMyXlLEgdWywjYyh8vpNFbDG0",
         "5435775441:AAEsLTPhyyi37l-BlWx3TmnisZf270hxvhk",
         "5953540723:AAFLOoqDWWfG-7dwkBWv56OOMcwHFoe3K2c",
-    ],
-    [
         "5725633834:AAFjHeynEgALc7wgiJ1bDTCoiQbCEl-El_c",
         "5631121429:AAHmLfIA1e_AMaNDR7H5OStEkBIHLnZuIgM",
         "5862833945:AAG06pcn5ANXUDm9abmJOx2l47rEwwwrUpM",
@@ -39,8 +37,6 @@ BOTS = [
         "5197829672:AAELHqovNYF-RjoHgqE-0ZiCj3r2V2_KRPw",
         "5864458684:AAG3qtbyYMEyVLB8_824MRz3TD_hlE3tLLk",
         "5653725878:AAGhOrHmenE9mbE3psi80BhLG0H_z9MhjJU",
-    ],
-    [
         "5645968227:AAEwns7WfUfui7uGPW41S77yarqX7HhZSmA",
         "5892944154:AAFoLbyTZF4bS78cRqxVtfMqsekHWVAiCjA",
         "5633292420:AAG0fsqdUT4Z7cBNwvih168HpdVQtXawCYM",
@@ -49,8 +45,6 @@ BOTS = [
         "5960732338:AAEjFVL8_rjDG-wiZ5UOutHx4zeJUO2pO1w",
         "5487922392:AAEW1R6AEiJlxR1NDuuY0prw_4o_QPIOSTE",
         "5515725190:AAEOG0bap41nxVKQEPmJ-R4-fM_L1CgTBDU",
-    ],
-    [
         "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
         "5774315449:AAEfTL5vGlvafSysM567JZuukhjAUMTwlCg",
     ]
