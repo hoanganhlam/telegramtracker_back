@@ -155,6 +155,12 @@ class Telegram:
             name = "my_bot_{}".format(batch)
         return Client(name, api_id=self.api_id, api_hash=self.api_hash, bot_token=bot_token, workdir="pyrogram")
 
+    def remake_client(self):
+        self.app.stop()
+        self.bot_index = self.bot_index + 1
+        self.app = self.make_client()
+        self.app.start()
+
     def save_photo(
             self, photo: Union[Photo, ChatPhoto, UserProfilePhoto],
             path="room", extension="png", peer=None
@@ -196,56 +202,64 @@ class Telegram:
         test = Sticker.objects.filter(tg_id=sticker_id).first()
         if test:
             return
-        x = self.app.invoke(
-            functions.messages.GetStickerSet(
-                stickerset=InputStickerSetID(
-                    id=sticker_id,
-                    access_hash=access_hash
-                ),
-                hash=0
-            )
-        )
-        sticker = Sticker.objects.create(
-            tg_id=x.set.id,
-            name=x.set.title,
-            id_string=x.set.short_name,
-            count=x.set.count,
-            is_archived=x.set.archived,
-            is_official=x.set.official,
-            is_animated=x.set.animated,
-            is_video=x.set.videos
-        )
-        directory = "{}/{}".format(MEDIA_PATH, sticker_id)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        for document in x.documents:
-            document_parsed = Document._parse(
-                client=self.app,
-                document=document,
-                file_name="{}.png".format(document.id)
-            )
-            if x.set.videos:
-                extension = "mp4"
-            elif x.set.animated:
-                extension = "json"
-            else:
-                extension = "webp"
-            if extension:
-                file = self.app.download_media(document_parsed.file_id, in_memory=True)
-                fn = "{}/{}.{}".format(directory, document.id, extension)
-                with open(fn, "wb") as binary_file:
-                    if x.set.animated:
-                        binary_file.write(gzip.decompress(bytes(file.getbuffer())))
-                    else:
-                        binary_file.write(bytes(file.getbuffer()))
-                StickerItem.objects.get_or_create(
-                    tg_id=document.id,
-                    defaults={
-                        "sticker": sticker,
-                        "path": "{}/{}.{}".format(sticker_id, document.id, extension)
-                    }
+        try:
+            x = self.app.invoke(
+                functions.messages.GetStickerSet(
+                    stickerset=InputStickerSetID(
+                        id=sticker_id,
+                        access_hash=access_hash
+                    ),
+                    hash=0
                 )
-        zip_folder(folder_path=directory, output_path="{}.zip".format(directory))
+            )
+            sticker = Sticker.objects.create(
+                tg_id=x.set.id,
+                name=x.set.title,
+                id_string=x.set.short_name,
+                count=x.set.count,
+                is_archived=x.set.archived,
+                is_official=x.set.official,
+                is_animated=x.set.animated,
+                is_video=x.set.videos
+            )
+            directory = "{}/{}".format(MEDIA_PATH, sticker_id)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            for document in x.documents:
+                document_parsed = Document._parse(
+                    client=self.app,
+                    document=document,
+                    file_name="{}.png".format(document.id)
+                )
+                if x.set.videos:
+                    extension = "mp4"
+                elif x.set.animated:
+                    extension = "json"
+                else:
+                    extension = "webp"
+                if extension:
+                    file = self.app.download_media(document_parsed.file_id, in_memory=True)
+                    fn = "{}/{}.{}".format(directory, document.id, extension)
+                    with open(fn, "wb") as binary_file:
+                        if x.set.animated:
+                            binary_file.write(gzip.decompress(bytes(file.getbuffer())))
+                        else:
+                            binary_file.write(bytes(file.getbuffer()))
+                    StickerItem.objects.get_or_create(
+                        tg_id=document.id,
+                        defaults={
+                            "sticker": sticker,
+                            "path": "{}/{}.{}".format(sticker_id, document.id, extension)
+                        }
+                    )
+            zip_folder(folder_path=directory, output_path="{}.zip".format(directory))
+        except FloodWait as e:
+            if e.value < 100:
+                print("Waiting: {}".format(e.value))
+                time.sleep(e.value + 1)
+            else:
+                self.remake_client()
+                self.get_sticker_packer(sticker_id, access_hash)
 
     def search_sticker(self, query, page_hash=0):
         x = self.app.invoke(
@@ -265,13 +279,12 @@ class Telegram:
         try:
             peer = self.app.resolve_peer(str(chat))
         except FloodWait as e:
-            if e.value > 1000:
-                self.app.stop()
-                self.bot_index = self.bot_index + 1
-                self.app = self.make_client()
-                self.app.start()
+            if e.value < 100:
+                print("Waiting: {}".format(e.value))
+                time.sleep(e.value + 1)
+            else:
+                self.remake_client()
                 self.get_chat(chat)
-                return
         info = self.app.invoke(
             functions.channels.GetFullChannel(
                 channel=peer
@@ -289,6 +302,13 @@ class Telegram:
             room.messages = self.app.get_chat_history_count(chat)
         except BotMethodInvalid as e:
             print(e.MESSAGE)
+        except FloodWait as e:
+            if e.value < 100:
+                print("Waiting: {}".format(e.value))
+                time.sleep(e.value + 1)
+            else:
+                self.remake_client()
+                self.get_chat(chat)
         if room.last_post_id == 0 or room.last_post_id is None:
             room.last_post_id = room.messages
         room.save()
@@ -442,13 +462,12 @@ class Telegram:
                 time.sleep(2)
                 self.get_chat_messages(chat, room)
         except FloodWait as e:
-            print("Wait: {}".format(e.value))
-            # time.sleep(e.value + 1)
-            self.app.stop()
-            self.bot_index = self.bot_index + 1
-            self.app = self.make_client()
-            self.app.start()
-            self.get_chat_messages(chat, room)
+            if e.value < 100:
+                print("Waiting: {}".format(e.value))
+                time.sleep(e.value + 1)
+            else:
+                self.remake_client()
+                self.get_chat_messages(chat, room)
         room.save()
 
     def save_participants(self, chat: InputChannel, room: Room):
@@ -481,9 +500,15 @@ class Telegram:
                         if hasattr(p, "promoted_by") and p.promoted_by:
                             np.promoter = self.save_account(p.promoted_by)
                             np.save()
-
         except ChatAdminRequired as e:
             print(e.MESSAGE)
+        except FloodWait as e:
+            if e.value < 100:
+                print("Waiting: {}".format(e.value))
+                time.sleep(e.value + 1)
+            else:
+                self.remake_client()
+                self.save_participants(chat, room)
 
     def monitor(self, batch):
         for item in Room.objects.filter(batch=batch):
