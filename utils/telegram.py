@@ -338,7 +338,11 @@ class Telegram:
                 time.sleep(e.value + 1)
                 return self.get_chat(chat)
             else:
-                raise TelegramGreetLimit("ENDED")
+                self.remake_client()
+                return self.get_chat(chat)
+        except TelegramGreetLimit:
+            self.remake_client()
+            return self.get_chat(chat)
 
     def save_room(self, chat_full: ChatFull):
         full_chat = chat_full.full_chat
@@ -525,8 +529,4 @@ class Telegram:
 
     def monitor(self, batch):
         for item in Room.objects.filter(batch=batch):
-            try:
-                self.get_chat(chat=item.id_string)
-            except TelegramGreetLimit as e:
-                self.remake_client()
-                self.get_chat(chat=item.id_string)
+            self.get_chat(chat=item.id_string)
