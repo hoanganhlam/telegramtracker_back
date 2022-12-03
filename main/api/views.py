@@ -1,5 +1,6 @@
 import datetime
 import asyncio
+import re
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets, permissions, generics
@@ -14,11 +15,10 @@ from media.models import Media
 from django_filters import rest_framework as filters
 from django_filters import DateTimeFromToRangeFilter
 from utils.telegram import Telegram, get_batch
-from asgiref.sync import sync_to_async, async_to_sync
+from asgiref.sync import sync_to_async
 
-from pyrogram.raw.types import InputPeerChannel
-from pyrogram import Client
-from pyrogram.raw.types.messages import FoundStickerSets, ChatFull
+from pyrogram.raw.types import InputChannel, InputPeerChannel
+from pyrogram.raw.types.messages import ChatFull
 from pyrogram.raw import functions
 
 
@@ -286,7 +286,8 @@ def save_room(chat_full: ChatFull):
             defaults={
                 "id_string": chat_linked.username,
                 "name": chat_linked.title,
-                "batch": get_batch()
+                "batch": get_batch(),
+                "access_hash": chat_linked.access_hash
             }
         )
         room.associate = associate
@@ -310,6 +311,7 @@ def save_room(chat_full: ChatFull):
     room.members = full_chat.participants_count or 0
     room.online = full_chat.online_count or 0
     room.is_group = not chat.broadcast
+    room.access_hash = chat.access_hash
     room.save()
     return room
 
@@ -319,19 +321,27 @@ def get_chat(request):
     async def main(username):
         tg = Telegram()
         async with tg.app:
-            try:
-                peer = await tg.app.resolve_peer(username)
-            except Exception as e:
-                print(e)
-                return None, 0
+            peer_id = re.sub(r"[@+\s]", "", username.lower())
+            peer = await tg.app.invoke(
+                functions.contacts.ResolveUsername(
+                    username=peer_id
+                )
+            )
+            input_channel = InputChannel(
+                channel_id=peer.chats[0].id,
+                access_hash=peer.chats[0].access_hash
+            )
             info = await tg.app.invoke(
                 functions.channels.GetFullChannel(
-                    channel=peer
+                    channel=input_channel
                 )
             )
             r = await tg.app.invoke(
                 functions.messages.GetHistory(
-                    peer=peer,
+                    peer=InputPeerChannel(
+                        channel_id=peer.chats[0].id,
+                        access_hash=peer.chats[0].access_hash
+                    ),
                     offset_id=0,
                     offset_date=0,
                     add_offset=0,
@@ -343,12 +353,13 @@ def get_chat(request):
             )
             return await save_room(info), r.count
 
-    room = models.Room.objects.filter(id_string=request.GET.get("username")).first()
+    un = request.GET.get("username")
+    room = models.Room.objects.filter(id_string=un)
     if room is None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop = asyncio.get_event_loop()
-        room, count = loop.run_until_complete(main(request.GET.get("username")))
+        room, count = loop.run_until_complete(main(un))
         if room:
             room.messages = count
             if room.last_post_id == 0 or room.last_post_id is None:

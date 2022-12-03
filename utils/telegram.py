@@ -15,8 +15,7 @@ from pyrogram.raw.types.messages import FoundStickerSets, ChatFull
 from pyrogram.raw.types.message import Message
 from pyrogram.types import Document, Photo
 from pyrogram.errors.exceptions.flood_420 import FloodWait
-from pyrogram.errors.exceptions.bad_request_400 import BotMethodInvalid
-from pyrogram.errors.exceptions.bad_request_400 import ChatAdminRequired
+from pyrogram.errors.exceptions.bad_request_400 import BotMethodInvalid, ChatAdminRequired
 from pyrogram.errors.exceptions.see_other_303 import FileMigrate
 from main.models import Sticker, StickerItem, Participant, Room, Snapshot, Account
 
@@ -27,10 +26,10 @@ MEDIA_PATH = "files/media"
 BOTS = [
     "",
     [
+        "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
         "5960732338:AAEjFVL8_rjDG-wiZ5UOutHx4zeJUO2pO1w",
         "5487922392:AAEW1R6AEiJlxR1NDuuY0prw_4o_QPIOSTE",
         "5515725190:AAEOG0bap41nxVKQEPmJ-R4-fM_L1CgTBDU",
-        "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
         "5774315449:AAEfTL5vGlvafSysM567JZuukhjAUMTwlCg",
     ],
     [
@@ -271,6 +270,8 @@ class Telegram:
                 raise TelegramGreetLimit("ENDED")
 
     def get_message_count(self, chat):
+        if self.batch > 0:
+            return
         try:
             return self.app.get_chat_history_count(chat)
         except BotMethodInvalid as e:
@@ -303,38 +304,18 @@ class Telegram:
             if x.hash != 0:
                 self.search_sticker(query, x.hash)
 
-    def get_chat(self, chat, channel_id=0, access_hash=0):
-        print(chat)
+    def get_chat(self, chat):
         try:
             peer_id = re.sub(r"[@+\s]", "", chat.lower())
-            if channel_id != 0 and access_hash != 0:
-                input_channel = InputChannel(
-                    channel_id=channel_id,
-                    access_hash=access_hash
+            peer = self.app.invoke(
+                functions.contacts.ResolveUsername(
+                    username=peer_id
                 )
-            else:
-                if channel_id == 0:
-                    channel_id = self.app.invoke(
-                        functions.contacts.ResolveUsername(
-                            username=peer_id
-                        )
-                    )
-                print(channel_id)
-                print(access_hash)
-                info = self.app.invoke(
-                    functions.channels.GetChannels(
-                        id=[
-                            InputChannel(
-                                channel_id=channel_id,
-                                access_hash=0
-                            )
-                        ]
-                    )
-                )
-                input_channel = InputChannel(
-                    channel_id=info.chats[0].id,
-                    access_hash=info.chats[0].access_hash
-                )
+            )
+            input_channel = InputChannel(
+                channel_id=peer.chats[0].id,
+                access_hash=peer.chats[0].access_hash
+            )
             if not input_channel:
                 return
             info = self.app.invoke(
@@ -574,9 +555,5 @@ class Telegram:
         if batch == 0:
             batch = 1
         for item in Room.objects.filter(batch=batch):
-            self.get_chat(
-                chat=item.id_string,
-                channel_id=int(item.tg_id),
-                access_hash=int(item.access_hash) if item.access_hash else 0
-            )
+            self.get_chat(chat=item.id_string)
             break
