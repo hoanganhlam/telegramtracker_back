@@ -269,26 +269,20 @@ class Telegram:
                 print("GREET_LIMIT: get_sticker_packer")
                 raise TelegramGreetLimit("ENDED")
 
-    def get_message_count(self, chat):
-        if self.batch > 0:
-            return
-        try:
-            return self.app.get_chat_history_count(chat)
-        except BotMethodInvalid as e:
-            print(e.MESSAGE)
-            return 0
-        except FloodWait as e:
-            if e.value < 100:
-                print("Waiting: {}".format(e.value))
-                time.sleep(e.value + 3)
-                return self.get_message_count(chat)
-            else:
-                print("GREET_LIMIT: get_message_count")
-                raise TelegramGreetLimit("ENDED")
-
-        except Exception as e:
-            print(e)
-            return 0
+    def get_message_count(self, input_channel):
+        r = self.app.invoke(
+            functions.messages.GetHistory(
+                peer=input_channel,
+                offset_id=0,
+                offset_date=0,
+                add_offset=0,
+                limit=1,
+                max_id=0,
+                min_id=0,
+                hash=0
+            )
+        )
+        return r.count
 
     def search_sticker(self, query, page_hash=0):
         x = self.app.invoke(
@@ -331,7 +325,7 @@ class Telegram:
                 )
             # SAVE ROOM
             room = self.save_room(info)
-            room.messages = self.get_message_count(chat)
+            room.messages = self.get_message_count(input_channel)
             if room.last_post_id == 0 or room.last_post_id is None:
                 room.last_post_id = room.messages
             room.access_hash = input_channel.access_hash
