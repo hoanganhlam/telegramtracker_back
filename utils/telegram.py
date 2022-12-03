@@ -144,11 +144,13 @@ class Telegram:
     api_hash = "53530778484f8cab535f87ccc2c4b472"
     apps = []
     bot_index = 0
+    batch = 0
 
     def __init__(self, batch=0):
         self.app = self.make_client(batch)
 
     def make_client(self, batch=0, bot_index=0):
+        self.batch = batch
         name = "my_account"
         bot_token = None
         if batch > 0:
@@ -162,8 +164,8 @@ class Telegram:
     def remake_client(self):
         self.app.stop()
         self.bot_index = self.bot_index + 1
-        print("REGENERATE BOT: {}".format(self.bot_index))
-        self.app = self.make_client()
+        print(self.bot_index)
+        self.app = self.make_client(batch=self.batch, bot_index=self.bot_index)
         self.app.start()
 
     def save_photo(
