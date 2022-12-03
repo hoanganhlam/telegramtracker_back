@@ -318,6 +318,7 @@ class Telegram:
                             username=peer_id
                         )
                     )
+                print(channel_id)
                 info = self.app.invoke(
                     functions.channels.GetChannels(
                         id=[
