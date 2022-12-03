@@ -552,4 +552,3 @@ class Telegram:
             batch = 1
         for item in Room.objects.filter(batch=batch):
             self.get_chat(chat=item.id_string)
-            break
