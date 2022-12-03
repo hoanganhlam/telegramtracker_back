@@ -51,6 +51,10 @@ BOTS = [
 ]
 
 
+class TelegramGreetLimit(Exception):
+    pass
+
+
 def get_batch():
     batch = 1
     for n in range(200):
@@ -259,7 +263,7 @@ class Telegram:
                 time.sleep(e.value + 3)
                 self.get_sticker_packer(sticker_id, access_hash)
             else:
-                print("END")
+                raise TelegramGreetLimit("ENDED")
 
     def get_message_count(self, chat):
         try:
@@ -273,7 +277,7 @@ class Telegram:
                 time.sleep(e.value + 3)
                 return self.get_message_count(chat)
             else:
-                print("END")
+                raise TelegramGreetLimit("ENDED")
 
         except Exception as e:
             print(e)
@@ -333,7 +337,7 @@ class Telegram:
                 time.sleep(e.value + 1)
                 return self.get_chat(chat)
             else:
-                print("END")
+                raise TelegramGreetLimit("ENDED")
 
     def save_room(self, chat_full: ChatFull):
         full_chat = chat_full.full_chat
@@ -476,7 +480,7 @@ class Telegram:
                 time.sleep(e.value + 1)
                 self.get_chat_messages(chat, room)
             else:
-                print("END")
+                raise TelegramGreetLimit("ENDED")
 
     def save_participants(self, chat: InputChannel, room: Room):
         try:
@@ -516,8 +520,12 @@ class Telegram:
                 time.sleep(e.value + 1)
                 self.save_participants(chat, room)
             else:
-                print("END")
+                raise TelegramGreetLimit("ENDED")
 
     def monitor(self, batch):
         for item in Room.objects.filter(batch=batch):
-            self.get_chat(chat=item.id_string)
+            try:
+                self.get_chat(chat=item.id_string)
+            except TelegramGreetLimit as e:
+                self.remake_client()
+                self.get_chat(chat=item.id_string)
