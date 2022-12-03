@@ -162,6 +162,7 @@ class Telegram:
     def remake_client(self):
         self.app.stop()
         self.bot_index = self.bot_index + 1
+        print("REGENERATE BOT: {}".format(self.bot_index))
         self.app = self.make_client()
         self.app.start()
 
