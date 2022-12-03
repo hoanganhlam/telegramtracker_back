@@ -1,3 +1,4 @@
+import re
 import os
 import gzip
 import time
@@ -26,12 +27,11 @@ MEDIA_PATH = "files/media"
 BOTS = [
     "",
     [
-        "5931254056:AAHFSc-7f4BMyXlLEgdWywjYyh8vpNFbDG0",
-        "5435775441:AAEsLTPhyyi37l-BlWx3TmnisZf270hxvhk",
-        "5953540723:AAFLOoqDWWfG-7dwkBWv56OOMcwHFoe3K2c",
-        "5725633834:AAFjHeynEgALc7wgiJ1bDTCoiQbCEl-El_c",
-        "5631121429:AAHmLfIA1e_AMaNDR7H5OStEkBIHLnZuIgM",
-        "5862833945:AAG06pcn5ANXUDm9abmJOx2l47rEwwwrUpM",
+        "5960732338:AAEjFVL8_rjDG-wiZ5UOutHx4zeJUO2pO1w",
+        "5487922392:AAEW1R6AEiJlxR1NDuuY0prw_4o_QPIOSTE",
+        "5515725190:AAEOG0bap41nxVKQEPmJ-R4-fM_L1CgTBDU",
+        "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
+        "5774315449:AAEfTL5vGlvafSysM567JZuukhjAUMTwlCg",
     ],
     [
         "5197829672:AAELHqovNYF-RjoHgqE-0ZiCj3r2V2_KRPw",
@@ -42,12 +42,13 @@ BOTS = [
         "5633292420:AAG0fsqdUT4Z7cBNwvih168HpdVQtXawCYM",
     ],
     [
-        "5960732338:AAEjFVL8_rjDG-wiZ5UOutHx4zeJUO2pO1w",
-        "5487922392:AAEW1R6AEiJlxR1NDuuY0prw_4o_QPIOSTE",
-        "5515725190:AAEOG0bap41nxVKQEPmJ-R4-fM_L1CgTBDU",
-        "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
-        "5774315449:AAEfTL5vGlvafSysM567JZuukhjAUMTwlCg",
-    ]
+        "5931254056:AAHFSc-7f4BMyXlLEgdWywjYyh8vpNFbDG0",
+        "5435775441:AAEsLTPhyyi37l-BlWx3TmnisZf270hxvhk",
+        "5953540723:AAFLOoqDWWfG-7dwkBWv56OOMcwHFoe3K2c",
+        "5725633834:AAFjHeynEgALc7wgiJ1bDTCoiQbCEl-El_c",
+        "5631121429:AAHmLfIA1e_AMaNDR7H5OStEkBIHLnZuIgM",
+        "5862833945:AAG06pcn5ANXUDm9abmJOx2l47rEwwwrUpM",
+    ],
 ]
 
 
@@ -164,7 +165,7 @@ class Telegram:
     def remake_client(self):
         self.app.stop()
         self.bot_index = self.bot_index + 1
-        print(self.bot_index)
+        print("REGENERATE: {}".format(self.bot_index))
         self.app = self.make_client(batch=self.batch, bot_index=self.bot_index)
         self.app.start()
 
@@ -266,6 +267,7 @@ class Telegram:
                 time.sleep(e.value + 3)
                 self.get_sticker_packer(sticker_id, access_hash)
             else:
+                print("GREET_LIMIT: get_sticker_packer")
                 raise TelegramGreetLimit("ENDED")
 
     def get_message_count(self, chat):
@@ -280,6 +282,7 @@ class Telegram:
                 time.sleep(e.value + 3)
                 return self.get_message_count(chat)
             else:
+                print("GREET_LIMIT: get_message_count")
                 raise TelegramGreetLimit("ENDED")
 
         except Exception as e:
@@ -300,12 +303,40 @@ class Telegram:
             if x.hash != 0:
                 self.search_sticker(query, x.hash)
 
-    def get_chat(self, chat):
+    def get_chat(self, chat, channel_id=0, access_hash=0):
         try:
-            peer = self.app.resolve_peer(str(chat))
+            peer_id = re.sub(r"[@+\s]", "", chat.lower())
+            if channel_id != 0 and access_hash != 0:
+                input_channel = InputChannel(
+                    channel_id=channel_id,
+                    access_hash=access_hash
+                )
+            else:
+                if channel_id == 0:
+                    channel_id = self.app.invoke(
+                        functions.contacts.ResolveUsername(
+                            username=peer_id
+                        )
+                    )
+                info = self.app.invoke(
+                    functions.channels.GetChannels(
+                        id=[
+                            InputChannel(
+                                channel_id=channel_id,
+                                access_hash=0
+                            )
+                        ]
+                    )
+                )
+                input_channel = InputChannel(
+                    channel_id=info.chats[0].id,
+                    access_hash=info.chats[0].access_hash
+                )
+            if not input_channel:
+                return
             info = self.app.invoke(
                 functions.channels.GetFullChannel(
-                    channel=peer
+                    channel=input_channel
                 )
             )
             # SAVE STICKER
@@ -319,6 +350,7 @@ class Telegram:
             room.messages = self.get_message_count(chat)
             if room.last_post_id == 0 or room.last_post_id is None:
                 room.last_post_id = room.messages
+            room.access_hash = input_channel.access_hash
             room.save()
             now = datetime.datetime.now(tz=timezone.utc)
             newest = Snapshot.objects.create(
@@ -330,19 +362,22 @@ class Telegram:
                 messages=0,
             )
             check_last(room=room, post_id=None, newest=newest, date=now)
-            self.save_participants(peer, room)
+            self.save_participants(input_channel, room)
             if not room.is_group:
-                self.get_chat_messages(peer, room)
+                self.get_chat_messages(input_channel, room)
             return room
+
         except FloodWait as e:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 1)
                 return self.get_chat(chat)
             else:
+                print("GREET_LIMIT: get_chat")
                 self.remake_client()
                 return self.get_chat(chat)
         except TelegramGreetLimit:
+            print("GREET_LIMIT: get_chat")
             self.remake_client()
             return self.get_chat(chat)
 
@@ -433,6 +468,7 @@ class Telegram:
                 account.tg_username = user_raw.username
             if not account.meta:
                 account.meta = {}
+            account.access_hash = user_raw.access_hash
             account.meta["is_scam"] = user_raw.scam
             account.meta["is_premium"] = user_raw.premium
             account.meta["is_verified"] = user_raw.verified
@@ -487,6 +523,7 @@ class Telegram:
                 time.sleep(e.value + 1)
                 self.get_chat_messages(chat, room)
             else:
+                print("GREET_LIMIT: get_chat_messages")
                 raise TelegramGreetLimit("ENDED")
 
     def save_participants(self, chat: InputChannel, room: Room):
@@ -527,8 +564,16 @@ class Telegram:
                 time.sleep(e.value + 1)
                 self.save_participants(chat, room)
             else:
+                print("GREET_LIMIT: save_participants")
                 raise TelegramGreetLimit("ENDED")
 
     def monitor(self, batch):
+        if batch == 0:
+            batch = 1
         for item in Room.objects.filter(batch=batch):
-            self.get_chat(chat=item.id_string)
+            self.get_chat(
+                chat=item.id_string,
+                channel_id=int(item.tg_id),
+                access_hash=int(item.access_hash) if item.access_hash else 0
+            )
+            break
