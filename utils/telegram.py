@@ -256,10 +256,10 @@ class Telegram:
         except FloodWait as e:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
-                time.sleep(e.value + 1)
+                time.sleep(e.value + 3)
+                self.get_sticker_packer(sticker_id, access_hash)
             else:
-                self.remake_client()
-            self.get_sticker_packer(sticker_id, access_hash)
+                print("END")
 
     def get_message_count(self, chat):
         try:
@@ -270,10 +270,11 @@ class Telegram:
         except FloodWait as e:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
-                time.sleep(e.value + 1)
+                time.sleep(e.value + 3)
+                return self.get_message_count(chat)
             else:
-                self.remake_client()
-            return self.get_message_count(chat)
+                print("END")
+
         except Exception as e:
             print(e)
             return 0
@@ -330,9 +331,9 @@ class Telegram:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 1)
+                return self.get_chat(chat)
             else:
-                self.remake_client()
-            return self.get_chat(chat)
+                print("END")
 
     def save_room(self, chat_full: ChatFull):
         full_chat = chat_full.full_chat
@@ -473,9 +474,9 @@ class Telegram:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 1)
+                self.get_chat_messages(chat, room)
             else:
-                self.remake_client()
-            self.get_chat_messages(chat, room)
+                print("END")
 
     def save_participants(self, chat: InputChannel, room: Room):
         try:
@@ -513,9 +514,9 @@ class Telegram:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 1)
+                self.save_participants(chat, room)
             else:
-                self.remake_client()
-            self.save_participants(chat, room)
+                print("END")
 
     def monitor(self, batch):
         for item in Room.objects.filter(batch=batch):
