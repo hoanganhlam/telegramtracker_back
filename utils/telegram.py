@@ -304,6 +304,7 @@ class Telegram:
                 self.search_sticker(query, x.hash)
 
     def get_chat(self, chat, channel_id=0, access_hash=0):
+        print(chat)
         try:
             peer_id = re.sub(r"[@+\s]", "", chat.lower())
             if channel_id != 0 and access_hash != 0:
@@ -319,6 +320,7 @@ class Telegram:
                         )
                     )
                 print(channel_id)
+                print(access_hash)
                 info = self.app.invoke(
                     functions.channels.GetChannels(
                         id=[
