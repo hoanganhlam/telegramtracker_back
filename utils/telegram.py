@@ -161,13 +161,6 @@ class Telegram:
             name = "my_bot_{}".format(batch)
         return Client(name, api_id=self.api_id, api_hash=self.api_hash, bot_token=bot_token, workdir="pyrogram")
 
-    def remake_client(self):
-        self.app.stop()
-        self.bot_index = self.bot_index + 1
-        print("REGENERATE: {}".format(self.bot_index))
-        self.app = self.make_client(batch=self.batch, bot_index=self.bot_index)
-        self.app.start()
-
     def save_photo(
             self, photo: Union[Photo, ChatPhoto, UserProfilePhoto],
             path="room", extension="png", peer=None
@@ -266,8 +259,7 @@ class Telegram:
                 time.sleep(e.value + 3)
                 self.get_sticker_packer(sticker_id, access_hash)
             else:
-                print("GREET_LIMIT: get_sticker_packer")
-                raise TelegramGreetLimit("ENDED")
+                raise TelegramGreetLimit("get_sticker_packer")
 
     def get_message_count(self, input_channel):
         if self.batch > 0:
@@ -353,13 +345,7 @@ class Telegram:
                 time.sleep(e.value + 1)
                 return self.get_chat(chat)
             else:
-                print("GREET_LIMIT: get_chat")
-                self.remake_client()
-                return self.get_chat(chat)
-        except TelegramGreetLimit:
-            print("GREET_LIMIT: get_chat")
-            self.remake_client()
-            return self.get_chat(chat)
+                raise TelegramGreetLimit("get_chat")
 
     def save_room(self, chat_full: ChatFull):
         full_chat = chat_full.full_chat
@@ -459,6 +445,8 @@ class Telegram:
     def get_chat_messages(self, chat: InputChannel, room: Room):
         now = datetime.datetime.now(tz=timezone.utc)
         message_ids = []
+        if room.last_post_id is None:
+            room.last_post_id = 0
         start = room.last_post_id
         end = room.last_post_id + 200
         while start < end:
@@ -503,8 +491,7 @@ class Telegram:
                 time.sleep(e.value + 1)
                 self.get_chat_messages(chat, room)
             else:
-                print("GREET_LIMIT: get_chat_messages")
-                raise TelegramGreetLimit("ENDED")
+                raise TelegramGreetLimit("get_chat_messages")
 
     def save_participants(self, chat: InputChannel, room: Room):
         try:
@@ -544,8 +531,7 @@ class Telegram:
                 time.sleep(e.value + 1)
                 self.save_participants(chat, room)
             else:
-                print("GREET_LIMIT: save_participants")
-                raise TelegramGreetLimit("ENDED")
+                raise TelegramGreetLimit("save_participants")
 
     def monitor(self, batch):
         if batch == 0:

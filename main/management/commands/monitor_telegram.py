@@ -16,5 +16,5 @@ class Command(BaseCommand):
             tg.monitor(options["batch"])
             executed = time.time() - start_time
             print("--- %s seconds ---" % executed)
-            if executed < 5 * 60:
-                time.sleep(5 * 60 - executed)
+            if executed < 15 * 60:
+                time.sleep(15 * 60 - executed)
