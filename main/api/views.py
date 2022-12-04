@@ -318,45 +318,6 @@ def save_room(chat_full: ChatFull):
     return room
 
 
-@sync_to_async
-def save_photo(
-        self, photo: Union[Photo, ChatPhoto, UserProfilePhoto],
-        path="room", extension="png", peer=None
-):
-    pa = "{}/{}.{}".format(path, photo.id if hasattr(photo, "id") else photo.photo_id, extension)
-    fn = "{}/{}".format(MEDIA_PATH, pa)
-    if not os.path.exists("{}/{}".format(MEDIA_PATH, path)):
-        os.makedirs("{}/{}".format(MEDIA_PATH, path))
-    file_id = None
-    if hasattr(photo, "file_id"):
-        file_id = photo.file_id
-    elif hasattr(photo, "id"):
-        file_id = Photo._parse(self.app, photo).file_id
-    if file_id:
-        file = self.app.download_media(file_id, in_memory=True)
-        with open(fn, "wb") as binary_file:
-            binary_file.write(bytes(file.getbuffer()))
-    elif hasattr(photo, "photo_id"):
-        try:
-            info = self.app.invoke(
-                functions.upload.GetFile(
-                    location=InputPeerPhotoFileLocation(
-                        photo_id=photo.photo_id,
-                        peer=peer,
-                        big=True
-                    ),
-                    offset=0,
-                    limit=1024 * 1024
-                )
-            )
-            with open(fn, "wb") as binary_file:
-                binary_file.write(info.bytes)
-        except FileMigrate as e:
-            print(e.MESSAGE)
-            return None
-    return pa
-
-
 @api_view(['GET'])
 def get_chat(request):
     async def main(username):
@@ -395,7 +356,7 @@ def get_chat(request):
             return await save_room(info), r.count
 
     un = request.GET.get("username")
-    room = models.Room.objects.filter(id_string=un)
+    room = models.Room.objects.filter(id_string=un).first()
     if room is None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
