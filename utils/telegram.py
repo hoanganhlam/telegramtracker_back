@@ -26,8 +26,8 @@ MEDIA_PATH = "files/media"
 BOTS = [
     "",
     [
-        "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
         "5960732338:AAEjFVL8_rjDG-wiZ5UOutHx4zeJUO2pO1w",
+        "5808667607:AAEIeKiyY_Ef6snzxIpsRNYofLgvrqSjyuY",
         "5487922392:AAEW1R6AEiJlxR1NDuuY0prw_4o_QPIOSTE",
         "5515725190:AAEOG0bap41nxVKQEPmJ-R4-fM_L1CgTBDU",
         "5774315449:AAEfTL5vGlvafSysM567JZuukhjAUMTwlCg",
