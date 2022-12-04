@@ -13,7 +13,6 @@ from rest_framework import status
 from base import pagination
 from . import serializers
 from main import models
-from media.models import Media
 from django_filters import rest_framework as filters
 from django_filters import DateTimeFromToRangeFilter
 from utils.telegram import Telegram, get_batch
@@ -439,8 +438,6 @@ def import_room(request):
 
         # check
         if room.name != request.data.get("title"):
-            if room.media is None and request.data["image"]:
-                room.media = Media.objects.save_url(request.data["image"])
             room.name = request.data.get("title")
             room.desc = request.data.get("desc")
         if room.id_string == request.data["id"]:
