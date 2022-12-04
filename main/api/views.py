@@ -1,6 +1,8 @@
 import datetime
 import asyncio
 import re
+import os
+from typing import Union
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets, permissions, generics
@@ -17,9 +19,14 @@ from django_filters import DateTimeFromToRangeFilter
 from utils.telegram import Telegram, get_batch
 from asgiref.sync import sync_to_async
 
-from pyrogram.raw.types import InputChannel, InputPeerChannel
+from pyrogram.types import Photo
 from pyrogram.raw.types.messages import ChatFull
 from pyrogram.raw import functions
+from pyrogram.errors.exceptions.see_other_303 import FileMigrate
+from pyrogram.raw.types import InputPeerPhotoFileLocation, InputPeerChannel, \
+    ChatPhoto, ChannelParticipantsAdmins, InputChannel, User, UserProfilePhoto
+
+MEDIA_PATH = "files/media"
 
 
 def make_account(item):
@@ -54,15 +61,11 @@ def make_room(data):
             if models.Room.objects.filter(batch=batch).count() > 50:
                 batch = n
                 break
-        media = None
-        if data.get("image"):
-            media = Media.objects.save_url(data["image"])
         room = models.Room.objects.create(
             tg_id=data["id"],
             id_string=data["room"] if data.get("title") else data["id"],
             name=data.get("title"),
             desc=data.get("desc"),
-            media=media,
             batch=batch
         )
     elif data.get("title") and room.id_string == room.tg_id:
@@ -314,6 +317,45 @@ def save_room(chat_full: ChatFull):
     room.access_hash = chat.access_hash
     room.save()
     return room
+
+
+@sync_to_async
+def save_photo(
+        self, photo: Union[Photo, ChatPhoto, UserProfilePhoto],
+        path="room", extension="png", peer=None
+):
+    pa = "{}/{}.{}".format(path, photo.id if hasattr(photo, "id") else photo.photo_id, extension)
+    fn = "{}/{}".format(MEDIA_PATH, pa)
+    if not os.path.exists("{}/{}".format(MEDIA_PATH, path)):
+        os.makedirs("{}/{}".format(MEDIA_PATH, path))
+    file_id = None
+    if hasattr(photo, "file_id"):
+        file_id = photo.file_id
+    elif hasattr(photo, "id"):
+        file_id = Photo._parse(self.app, photo).file_id
+    if file_id:
+        file = self.app.download_media(file_id, in_memory=True)
+        with open(fn, "wb") as binary_file:
+            binary_file.write(bytes(file.getbuffer()))
+    elif hasattr(photo, "photo_id"):
+        try:
+            info = self.app.invoke(
+                functions.upload.GetFile(
+                    location=InputPeerPhotoFileLocation(
+                        photo_id=photo.photo_id,
+                        peer=peer,
+                        big=True
+                    ),
+                    offset=0,
+                    limit=1024 * 1024
+                )
+            )
+            with open(fn, "wb") as binary_file:
+                binary_file.write(info.bytes)
+        except FileMigrate as e:
+            print(e.MESSAGE)
+            return None
+    return pa
 
 
 @api_view(['GET'])
