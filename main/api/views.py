@@ -237,6 +237,12 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
 
         page = self.paginate_queryset(queryset)
         if page is not None:
+            if request.GET.get("properties__taxonomy") and request.GET.get("properties__id_string"):
+                instance = serializers.PropertySerializer(instance=models.Property.objects.filter(
+                    taxonomy=request.GET["properties__taxonomy"],
+                    id_string=request.GET["properties__id_string"]
+                ).first()).data
+                setattr(self.paginator, 'instance', instance)
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
@@ -262,6 +268,12 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
 
         page = self.paginate_queryset(queryset)
         if page is not None:
+            if request.GET.get("properties__taxonomy") and request.GET.get("properties__id_string"):
+                instance = serializers.PropertySerializer(instance=models.Property.objects.filter(
+                    taxonomy=request.GET["properties__taxonomy"],
+                    id_string=request.GET["properties__id_string"]
+                ).first()).data
+                setattr(self.paginator, 'instance', instance)
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
