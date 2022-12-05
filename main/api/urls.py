@@ -15,5 +15,6 @@ urlpatterns = [
     path('fetch-room/', views.get_chat),
     path('room-import', views.import_room),
     path('post-import', views.import_post),
-    path('posts/', views.get_posts)
+    path('posts/', views.get_posts),
+    path('make_label/', views.make_label)
 ]

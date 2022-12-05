@@ -18,7 +18,7 @@ class Sticker(BaseModel, HasIDString):
     tg_id = models.CharField(max_length=100, db_index=True)
     access_hash = models.CharField(max_length=200, null=True, blank=True)
     desc = models.CharField(max_length=600, blank=True, null=True)
-    tags = models.ManyToManyField(Property, related_name="stickers", blank=True)
+    properties = models.ManyToManyField(Property, related_name="stickers", blank=True)
     user = models.ForeignKey(User, related_name="stickers", on_delete=models.SET_NULL, null=True, blank=True)
     count = models.IntegerField(default=0)
     is_archived = models.BooleanField(default=False)

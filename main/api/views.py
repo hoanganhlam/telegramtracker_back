@@ -1,8 +1,6 @@
 import datetime
 import asyncio
 import re
-import os
-from typing import Union
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets, permissions, generics
@@ -18,12 +16,9 @@ from django_filters import DateTimeFromToRangeFilter
 from utils.telegram import Telegram, get_batch
 from asgiref.sync import sync_to_async
 
-from pyrogram.types import Photo
 from pyrogram.raw.types.messages import ChatFull
 from pyrogram.raw import functions
-from pyrogram.errors.exceptions.see_other_303 import FileMigrate
-from pyrogram.raw.types import InputPeerPhotoFileLocation, InputPeerChannel, \
-    ChatPhoto, ChannelParticipantsAdmins, InputChannel, User, UserProfilePhoto
+from pyrogram.raw.types import InputPeerChannel, InputChannel
 
 MEDIA_PATH = "files/media"
 
@@ -68,11 +63,7 @@ def make_room(data):
             batch=batch
         )
     elif data.get("title") and room.id_string == room.tg_id:
-        media = None
-        if data.get("image"):
-            media = Media.objects.save_url(data["image"])
         room.id_string = data.get("room")
-        room.media = media
         room.name = data.get("title")
         room.desc = data.get("desc")
         room.save()
@@ -252,11 +243,17 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
 
 class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     models = models.Sticker
-    queryset = models.objects.order_by('-id')
+    queryset = models.objects.order_by('-id').prefetch_related("sticker_items").prefetch_related("properties")
     serializer_class = serializers.StickerSerializer
     pagination_class = pagination.Pagination
     filter_backends = [OrderingFilter]
     lookup_field = 'id_string'
+
+    def retrieve(self, request, *args, **kwargs):
+        self.serializer_class = serializers.StickerDetailSerializer
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
 
 @sync_to_async
@@ -495,6 +492,28 @@ def import_post(request):
                     views=0,
                     replies=0
                 )
+        return Response(status=status.HTTP_201_CREATED)
+    else:
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+
+@api_view(['POST'])
+def make_label(request):
+    if request.data["pwd"] == "NINOFATHER":
+        if request.GET["model"] == "room":
+            instance = models.Room.objects.get(pk=request.GET["id"])
+        else:
+            instance = models.Sticker.objects.get(pk=request.GET["id"])
+        post_names = [a.title() for a in request.GET["properties"]]
+        q = ~Q(account__tg_id__in=post_names)
+        instance.properties.filter(q).delete()
+        current_names = instance.properties.values_list("name", flat=True)
+        new_names = [a for a in post_names if a not in current_names]
+        for name in new_names:
+            p, _ = models.Property.objects.get_or_create(
+                name=name
+            )
+            instance.properties.add(p)
         return Response(status=status.HTTP_201_CREATED)
     else:
         return Response(status=status.HTTP_401_UNAUTHORIZED)

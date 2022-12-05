@@ -112,6 +112,8 @@ class StickerItemSerializer(serializers.ModelSerializer):
 
 
 class StickerSerializer(serializers.ModelSerializer):
+    sticker_items = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Sticker
         fields = [
@@ -120,7 +122,6 @@ class StickerSerializer(serializers.ModelSerializer):
             "id",
             "tg_id",
             "desc",
-            "tags",
             "count",
             "is_archived",
             "is_official",
@@ -129,6 +130,31 @@ class StickerSerializer(serializers.ModelSerializer):
             "sticker_items"
         ]
 
+    def get_sticker_items(self, instance):
+        return StickerItemSerializer(instance.sticker_items.all()[:6], many=True).data
+
+    def to_representation(self, instance):
+        return super(StickerSerializer, self).to_representation(instance)
+
+
+class StickerDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Sticker
+        fields = [
+            "id_string",
+            "name",
+            "id",
+            "tg_id",
+            "desc",
+            "count",
+            "is_archived",
+            "is_official",
+            "is_animated",
+            "is_video",
+            "sticker_items",
+            "properties"
+        ]
+
     def to_representation(self, instance):
         self.fields["sticker_items"] = StickerItemSerializer(many=True)
-        return super(StickerSerializer, self).to_representation(instance)
+        return super(StickerDetailSerializer, self).to_representation(instance)
