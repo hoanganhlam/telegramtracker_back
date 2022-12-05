@@ -138,6 +138,8 @@ class StickerSerializer(serializers.ModelSerializer):
 
 
 class StickerDetailSerializer(serializers.ModelSerializer):
+    sticker_items = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Sticker
         fields = [
@@ -155,6 +157,8 @@ class StickerDetailSerializer(serializers.ModelSerializer):
             "properties"
         ]
 
+    def get_sticker_items(self, instance):
+        return StickerItemSerializer(instance.sticker_items.all(), many=True).data
+
     def to_representation(self, instance):
-        self.fields["sticker_items"] = StickerItemSerializer(many=True)
         return super(StickerDetailSerializer, self).to_representation(instance)
