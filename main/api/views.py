@@ -225,6 +225,9 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
     def list(self, request, *args, **kwargs):
         self.serializer_class = serializers.RoomSerializer
         q = Q()
+        if request.GET.get("labeling"):
+            self.serializer_class = serializers.DetailRoomSerializer
+            q = Q(properties__isnull=True)
         if request.GET.get("batch"):
             self.serializer_class = serializers.RoomCrawlSerializer
             now = timezone.now()
@@ -248,6 +251,22 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
     pagination_class = pagination.Pagination
     filter_backends = [OrderingFilter]
     lookup_field = 'id_string'
+
+    def list(self, request, *args, **kwargs):
+        q = Q()
+        if request.GET.get("labeling"):
+            self.serializer_class = serializers.StickerDetailSerializer
+            q = Q(properties__isnull=True)
+
+        queryset = self.filter_queryset(self.get_queryset()).filter(q)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = serializers.StickerDetailSerializer
