@@ -225,7 +225,7 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
     def list(self, request, *args, **kwargs):
         self.serializer_class = serializers.RoomSerializer
         q = Q()
-        if request.GET.get("labeling"):
+        if request.GET.get("labeling") and not request.GET.get("force"):
             self.serializer_class = serializers.DetailRoomSerializer
             q = Q(properties__isnull=True)
         if request.GET.get("batch"):
