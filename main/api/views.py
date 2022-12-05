@@ -519,11 +519,11 @@ def import_post(request):
 @api_view(['POST'])
 def make_label(request):
     if request.data["pwd"] == "NINOFATHER":
-        if request.GET["model"] == "room":
-            instance = models.Room.objects.get(pk=request.GET["id"])
+        if request.data["model"] == "room":
+            instance = models.Room.objects.get(pk=request.data["id"])
         else:
-            instance = models.Sticker.objects.get(pk=request.GET["id"])
-        post_names = [a.title() for a in request.GET["properties"]]
+            instance = models.Sticker.objects.get(pk=request.data["id"])
+        post_names = [a.title() for a in request.data["properties"]]
         q = ~Q(account__tg_id__in=post_names)
         instance.properties.filter(q).delete()
         current_names = instance.properties.values_list("name", flat=True)
