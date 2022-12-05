@@ -531,18 +531,20 @@ def import_post(request):
 @api_view(['POST'])
 def make_label(request):
     if request.data["pwd"] == "NINOFATHER":
+        taxonomy = request.data.get("taxonomy", "category")
         if request.data["model"] == "room":
             instance = models.Room.objects.get(pk=request.data["id"])
         else:
             instance = models.Sticker.objects.get(pk=request.data["id"])
         post_names = [a.title() for a in request.data["properties"]]
-        q = ~Q(name__in=post_names)
+        q = ~Q(name__in=post_names) & Q(taxonomy=taxonomy)
         instance.properties.filter(q).delete()
         current_names = instance.properties.values_list("name", flat=True)
         new_names = [a for a in post_names if a not in current_names]
         for name in new_names:
             p, _ = models.Property.objects.get_or_create(
-                name=name
+                name=name,
+                taxonomy=taxonomy
             )
             instance.properties.add(p)
         return Response(status=status.HTTP_201_CREATED)
