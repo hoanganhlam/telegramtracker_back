@@ -524,7 +524,7 @@ def make_label(request):
         else:
             instance = models.Sticker.objects.get(pk=request.data["id"])
         post_names = [a.title() for a in request.data["properties"]]
-        q = ~Q(account__tg_id__in=post_names)
+        q = ~Q(name__in=post_names)
         instance.properties.filter(q).delete()
         current_names = instance.properties.values_list("name", flat=True)
         new_names = [a for a in post_names if a not in current_names]
