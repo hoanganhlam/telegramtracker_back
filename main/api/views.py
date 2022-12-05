@@ -11,8 +11,7 @@ from rest_framework import status
 from base import pagination
 from . import serializers
 from main import models
-from django_filters import rest_framework as filters
-from django_filters import DateTimeFromToRangeFilter
+from django_filters import rest_framework as filters, DateTimeFromToRangeFilter
 from utils.telegram import Telegram, get_batch
 from asgiref.sync import sync_to_async
 
@@ -234,7 +233,7 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
             now = timezone.now()
             q = (Q(last_crawl__isnull=True) | Q(last_crawl__lte=now - datetime.timedelta(minutes=1))) & Q(
                 batch=request.GET.get("batch"))
-        queryset = self.filter_queryset(self.get_queryset()).filter(q)
+        queryset = self.filter_queryset(self.get_queryset()).filter(q).distinct()
 
         page = self.paginate_queryset(queryset)
         if page is not None:
