@@ -145,6 +145,15 @@ class RoomFilter(filters.FilterSet):
         ]
 
 
+class StickerFilter(filters.FilterSet):
+    class Meta:
+        model = models.Sticker
+        fields = [
+            'properties__taxonomy',
+            'properties__id_string'
+        ]
+
+
 class PropertyViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     models = models.Property
     queryset = models.objects.order_by('-id')
@@ -255,7 +264,8 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
     queryset = models.objects.order_by('-id').prefetch_related("sticker_items").prefetch_related("properties")
     serializer_class = serializers.StickerSerializer
     pagination_class = pagination.Pagination
-    filter_backends = [OrderingFilter]
+    filter_backends = [OrderingFilter, SearchFilter, filters.DjangoFilterBackend]
+    filterset_class = StickerFilter
     lookup_field = 'id_string'
 
     def list(self, request, *args, **kwargs):
