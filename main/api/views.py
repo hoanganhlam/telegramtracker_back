@@ -274,7 +274,7 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
             self.serializer_class = serializers.StickerDetailSerializer
             q = Q(properties__isnull=True)
 
-        queryset = self.filter_queryset(self.get_queryset()).filter(q)
+        queryset = self.filter_queryset(self.get_queryset()).filter(q).distinct()
 
         page = self.paginate_queryset(queryset)
         if page is not None:
