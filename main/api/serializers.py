@@ -161,4 +161,5 @@ class StickerDetailSerializer(serializers.ModelSerializer):
         return StickerItemSerializer(instance.sticker_items.all(), many=True).data
 
     def to_representation(self, instance):
+        self.fields["properties"] = PropertySerializer(many=True)
         return super(StickerDetailSerializer, self).to_representation(instance)
