@@ -9,4 +9,4 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         tg = Telegram(batch=0)
         tg.app.start()
-        tg.get_sticker_packer(short_name=options['k'])
+        tg.search_sticker(options['k'])

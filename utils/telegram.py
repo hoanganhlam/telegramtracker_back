@@ -10,7 +10,7 @@ from pyrogram import Client
 from pyrogram.raw import functions
 from pyrogram.raw.types import InputStickerSetID, InputPeerPhotoFileLocation, InputMessageID, InputPeerChannel, \
     ChatPhoto, ChannelParticipantsAdmins, InputChannel, User, UserProfilePhoto, \
-    InputPeerUser
+    InputPeerUser, InputStickerSetShortName
 from pyrogram.raw.types.messages import FoundStickerSets, ChatFull
 from pyrogram.raw.types.message import Message
 from pyrogram.types import Document, Photo
@@ -198,17 +198,25 @@ class Telegram:
                 return None
         return pa
 
-    def get_sticker_packer(self, sticker_id, access_hash):
-        test = Sticker.objects.filter(tg_id=sticker_id).first()
+    def get_sticker_packer(self, sticker_id=None, access_hash=None, short_name=None):
+        if short_name:
+            test = Sticker.objects.filter(id_string=short_name).first()
+        else:
+            test = Sticker.objects.filter(tg_id=sticker_id).first()
         if test:
             return
         try:
+            if short_name:
+                sticker_set = InputStickerSetShortName(short_name=short_name)
+            else:
+                sticker_set = InputStickerSetID(
+                    id=sticker_id,
+                    access_hash=access_hash
+                )
+            print(sticker_set)
             x = self.app.invoke(
                 functions.messages.GetStickerSet(
-                    stickerset=InputStickerSetID(
-                        id=sticker_id,
-                        access_hash=access_hash
-                    ),
+                    stickerset=sticker_set,
                     hash=0
                 )
             )
@@ -222,7 +230,7 @@ class Telegram:
                 is_animated=x.set.animated,
                 is_video=x.set.videos
             )
-            directory = "{}/{}".format(MEDIA_PATH, sticker_id)
+            directory = "{}/{}".format(MEDIA_PATH, x.set.id)
             if not os.path.exists(directory):
                 os.makedirs(directory)
             for document in x.documents:
@@ -249,7 +257,7 @@ class Telegram:
                         tg_id=document.id,
                         defaults={
                             "sticker": sticker,
-                            "path": "{}/{}.{}".format(sticker_id, document.id, extension)
+                            "path": "{}/{}.{}".format(x.set.id, document.id, extension)
                         }
                     )
             zip_folder(folder_path=directory, output_path="{}.zip".format(directory))
@@ -257,7 +265,7 @@ class Telegram:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 3)
-                self.get_sticker_packer(sticker_id, access_hash)
+                self.get_sticker_packer(sticker_id, access_hash, short_name)
             else:
                 raise TelegramGreetLimit("get_sticker_packer")
 
