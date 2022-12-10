@@ -7,9 +7,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--batch', type=int)
+        parser.add_argument('--index', type=int)
 
     def handle(self, *args, **options):
-        tg = Telegram(batch=options["batch"])
+        tg = Telegram(batch=options["batch"], bot_index=options["index"] if options.get("index") else 0)
         tg.app.start()
         while True:
             start_time = time.time()

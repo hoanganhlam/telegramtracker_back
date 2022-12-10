@@ -146,8 +146,8 @@ class Telegram:
     bot_index = 0
     batch = 0
 
-    def __init__(self, batch=0):
-        self.app = self.make_client(batch)
+    def __init__(self, batch=0, bot_index=0):
+        self.app = self.make_client(batch, bot_index)
 
     def make_client(self, batch=0, bot_index=0):
         self.batch = batch
