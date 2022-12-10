@@ -1,6 +1,9 @@
 import datetime
 import asyncio
 import re
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import viewsets, permissions, generics
@@ -230,6 +233,8 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
     search_fields = ['name']
     lookup_field = 'id_string'
 
+    @method_decorator(cache_page(60 * 60 * 2))
+    @method_decorator(vary_on_cookie)
     def list(self, request, *args, **kwargs):
         self.serializer_class = serializers.RoomSerializer
         q = Q()
@@ -258,6 +263,13 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @method_decorator(cache_page(60 * 60 * 2))
+    @method_decorator(vary_on_cookie)
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
 
 class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     models = models.Sticker
@@ -268,6 +280,8 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
     filterset_class = StickerFilter
     lookup_field = 'id_string'
 
+    @method_decorator(cache_page(60 * 60 * 2))
+    @method_decorator(vary_on_cookie)
     def list(self, request, *args, **kwargs):
         q = Q()
         if request.GET.get("labeling"):
@@ -290,6 +304,8 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @method_decorator(cache_page(60 * 60 * 2))
+    @method_decorator(vary_on_cookie)
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = serializers.StickerDetailSerializer
         instance = self.get_object()
