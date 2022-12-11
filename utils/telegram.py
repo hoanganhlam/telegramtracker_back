@@ -300,9 +300,10 @@ class Telegram:
             if x.hash != 0:
                 self.search_sticker(query, x.hash)
 
-    def get_chat(self, chat):
+    def get_chat(self, chat, **options):
         try:
             peer_id = re.sub(r"[@+\s]", "", chat.lower())
+            print(peer_id)
             peer = self.app.invoke(
                 functions.contacts.ResolveUsername(
                     username=peer_id
@@ -320,11 +321,12 @@ class Telegram:
                 )
             )
             # SAVE STICKER
-            if info.full_chat.stickerset:
-                self.get_sticker_packer(
-                    sticker_id=info.full_chat.stickerset.id,
-                    access_hash=info.full_chat.stickerset.access_hash
-                )
+            if options.get("save_sticker"):
+                if info.full_chat.stickerset:
+                    self.get_sticker_packer(
+                        sticker_id=info.full_chat.stickerset.id,
+                        access_hash=info.full_chat.stickerset.access_hash
+                    )
             # SAVE ROOM
             room = self.save_room(info)
             # room.messages = self.get_message_count(input_channel)
@@ -342,8 +344,9 @@ class Telegram:
                 messages=0,
             )
             check_last(room=room, post_id=None, newest=newest, date=now)
-            self.save_participants(input_channel, room)
-            if not room.is_group:
+            if options.get("save_participant"):
+                self.save_participants(input_channel, room)
+            if not room.is_group and options.get("save_chat"):
                 self.get_chat_messages(input_channel, room)
             return room
 
@@ -354,6 +357,8 @@ class Telegram:
                 return self.get_chat(chat)
             else:
                 raise TelegramGreetLimit("get_chat")
+        except Exception as e:
+            print(e)
 
     def save_room(self, chat_full: ChatFull):
         full_chat = chat_full.full_chat
