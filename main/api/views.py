@@ -279,6 +279,7 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
     filter_backends = [OrderingFilter, SearchFilter, filters.DjangoFilterBackend]
     filterset_class = StickerFilter
     lookup_field = 'id_string'
+    search_fields = ['name', 'desc']
 
     @method_decorator(cache_page(60 * 60 * 2))
     @method_decorator(vary_on_cookie)
