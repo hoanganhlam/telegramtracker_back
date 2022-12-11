@@ -314,7 +314,7 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
 
 
 @sync_to_async
-def save_room(chat_full: ChatFull):
+def save_room(chat_full: ChatFull, access_hash):
     full_chat = chat_full.full_chat
     chat = None
     chat_linked = None
@@ -329,6 +329,7 @@ def save_room(chat_full: ChatFull):
     if room is None:
         room = models.Room.objects.create(
             tg_id=chat.id,
+            access_hash=access_hash,
             id_string=chat.username,
             name=chat.title,
             batch=get_batch(),
@@ -407,7 +408,7 @@ def get_chat(request):
                     hash=0
                 )
             )
-            return await save_room(info), r.count
+            return await save_room(info, input_channel.access_hash), r.count
 
     un = request.GET.get("username")
     room = models.Room.objects.filter(id_string=un).first()
