@@ -327,9 +327,9 @@ class Telegram:
                 )
             # SAVE ROOM
             room = self.save_room(info)
-            # room.messages = self.get_message_count(input_channel)
-            # if room.last_post_id == 0 or room.last_post_id is None:
-            #     room.last_post_id = room.messages
+            room.messages = self.get_message_count(input_channel)
+            if room.last_post_id == 0 or room.last_post_id is None:
+                room.last_post_id = room.messages
             room.access_hash = input_channel.access_hash
             room.save()
             now = datetime.datetime.now(tz=timezone.utc)
@@ -542,7 +542,5 @@ class Telegram:
                 raise TelegramGreetLimit("save_participants")
 
     def monitor(self, batch):
-        if batch == 0:
-            batch = 1
         for item in Room.objects.filter(batch=batch):
             self.get_chat(chat=item.id_string)
