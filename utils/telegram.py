@@ -270,6 +270,7 @@ class Telegram:
                 raise TelegramGreetLimit("get_sticker_packer")
 
     def get_message_count(self, input_channel):
+        print(input_channel)
         if self.batch > 0:
             return -1
         r = self.app.invoke(
