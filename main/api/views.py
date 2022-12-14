@@ -279,7 +279,7 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
         return Response(serializer.data)
 
     @method_decorator(cache_page(60 * 60 * 2))
-    @method_decorator(vary_on_headers)
+    @method_decorator(vary_on_headers("X-Cache"))
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
@@ -336,7 +336,7 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
         return Response(serializer.data)
 
     @method_decorator(cache_page(60 * 60 * 2))
-    @method_decorator(vary_on_cookie)
+    @method_decorator(vary_on_headers("X-Cache"))
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = serializers.StickerDetailSerializer
         instance = self.get_object()
