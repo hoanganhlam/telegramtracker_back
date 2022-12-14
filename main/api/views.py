@@ -268,7 +268,7 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
                             rooms__is_group=request.GET["is_group"] == "true"
                         ).annotate(
                             count_rooms=Count('rooms')
-                        ).order_by("-count_rooms")[:10],
+                        ).order_by("-count_rooms")[:20],
                         many=True
                     ).data
                 )
@@ -325,7 +325,7 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
                 serializers.PropertySerializer(
                     models.Property.objects.prefetch_related("stickers").annotate(
                         count_stickers=Count('stickers')
-                    ).order_by("-count_stickers")[:10],
+                    ).order_by("-count_stickers")[:20],
                     many=True
                 ).data
             )
