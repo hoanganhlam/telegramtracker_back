@@ -319,16 +319,16 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
                         ).first()
                     ).data
                 )
-                setattr(
-                    self.paginator,
-                    'properties',
-                    serializers.PropertySerializer(
-                        models.Property.objects.prefetch_related("stickers").annotate(
-                            count_stickers=Count('stickers')
-                        ).order_by("-count_stickers")[:10],
-                        many=True
-                    ).data
-                )
+            setattr(
+                self.paginator,
+                'properties',
+                serializers.PropertySerializer(
+                    models.Property.objects.prefetch_related("stickers").annotate(
+                        count_stickers=Count('stickers')
+                    ).order_by("-count_stickers")[:10],
+                    many=True
+                ).data
+            )
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
