@@ -33,6 +33,7 @@ class Pagination(pagination.PageNumberPagination):
             self.page_size = 10
         return Response({
             'instance': self.instance if hasattr(self, 'instance') else None,
+            'properties': self.properties if hasattr(self, 'properties') else [],
             'links': {
                 'next': self.get_next_link(),
                 'previous': self.get_previous_link()

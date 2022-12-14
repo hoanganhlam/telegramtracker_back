@@ -4,7 +4,7 @@ import re
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie, vary_on_headers
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
 from rest_framework import viewsets, permissions, generics
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -234,7 +234,7 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
     lookup_field = 'id_string'
 
     @method_decorator(cache_page(60 * 60 * 2))
-    @method_decorator(vary_on_cookie)
+    @method_decorator(vary_on_headers("X-Cache"))
     def list(self, request, *args, **kwargs):
         self.serializer_class = serializers.RoomSerializer
         q = Q()
@@ -257,6 +257,21 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
                     id_string=request.GET["properties__id_string"]
                 ).first()).data
                 setattr(self.paginator, 'instance', instance)
+            if request.GET.get("is_group"):
+                setattr(
+                    self.paginator,
+                    'properties',
+                    serializers.PropertySerializer(
+                        models.Property.objects.prefetch_related(
+                            "rooms"
+                        ).filter(
+                            rooms__is_group=request.GET["is_group"] == "true"
+                        ).annotate(
+                            count_rooms=Count('rooms')
+                        ).order_by("-count_rooms")[:10],
+                        many=True
+                    ).data
+                )
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
@@ -264,7 +279,7 @@ class RoomViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generics.
         return Response(serializer.data)
 
     @method_decorator(cache_page(60 * 60 * 2))
-    @method_decorator(vary_on_cookie)
+    @method_decorator(vary_on_headers)
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
@@ -282,7 +297,7 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
     search_fields = ['name', 'desc']
 
     @method_decorator(cache_page(60 * 60 * 2))
-    @method_decorator(vary_on_cookie)
+    @method_decorator(vary_on_headers("X-Cache"))
     def list(self, request, *args, **kwargs):
         q = Q()
         if request.GET.get("labeling"):
@@ -294,11 +309,26 @@ class StickerViewSet(viewsets.GenericViewSet, generics.ListCreateAPIView, generi
         page = self.paginate_queryset(queryset)
         if page is not None:
             if request.GET.get("properties__taxonomy") and request.GET.get("properties__id_string"):
-                instance = serializers.PropertySerializer(instance=models.Property.objects.filter(
-                    taxonomy=request.GET["properties__taxonomy"],
-                    id_string=request.GET["properties__id_string"]
-                ).first()).data
-                setattr(self.paginator, 'instance', instance)
+                setattr(
+                    self.paginator,
+                    'instance',
+                    serializers.PropertySerializer(
+                        instance=models.Property.objects.filter(
+                            taxonomy=request.GET["properties__taxonomy"],
+                            id_string=request.GET["properties__id_string"]
+                        ).first()
+                    ).data
+                )
+                setattr(
+                    self.paginator,
+                    'properties',
+                    serializers.PropertySerializer(
+                        models.Property.objects.prefetch_related("stickers").annotate(
+                            count_stickers=Count('stickers')
+                        ).order_by("-count_stickers")[:10],
+                        many=True
+                    ).data
+                )
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 

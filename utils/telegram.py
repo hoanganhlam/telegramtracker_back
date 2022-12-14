@@ -303,7 +303,6 @@ class Telegram:
     def get_chat(self, chat, **options):
         try:
             peer_id = re.sub(r"[@+\s]", "", chat.lower())
-            print(peer_id)
             peer = self.app.invoke(
                 functions.contacts.ResolveUsername(
                     username=peer_id
