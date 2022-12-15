@@ -198,12 +198,12 @@ class Telegram:
                 return None
         return pa
 
-    def get_sticker_packer(self, sticker_id=None, access_hash=None, short_name=None):
+    def get_sticker_packer(self, sticker_id=None, access_hash=None, short_name=None, force=False):
         if short_name:
-            test = Sticker.objects.filter(id_string=short_name).first()
+            sticker = Sticker.objects.filter(id_string=short_name).first()
         else:
-            test = Sticker.objects.filter(tg_id=sticker_id).first()
-        if test:
+            sticker = Sticker.objects.filter(tg_id=sticker_id).first()
+        if not force and sticker:
             return
         try:
             if short_name:
@@ -213,23 +213,29 @@ class Telegram:
                     id=sticker_id,
                     access_hash=access_hash
                 )
-            print(sticker_set)
             x = self.app.invoke(
                 functions.messages.GetStickerSet(
                     stickerset=sticker_set,
                     hash=0
                 )
             )
-            sticker = Sticker.objects.create(
-                tg_id=x.set.id,
-                name=x.set.title,
-                id_string=x.set.short_name,
-                count=x.set.count,
-                is_archived=x.set.archived,
-                is_official=x.set.official,
-                is_animated=x.set.animated,
-                is_video=x.set.videos
-            )
+            if sticker is None:
+                sticker, _ = Sticker.objects.get_or_create(
+                    tg_id=x.set.id,
+                    defaults={
+                        "name": x.set.title,
+                        "id_string": x.set.short_name,
+                        "count": x.set.count,
+                        "is_archived": x.set.archived,
+                        "is_official": x.set.official,
+                        "is_animated": x.set.animated,
+                        "is_video": x.set.videos,
+                        "access_hash": x.set.access_hash
+                    }
+                )
+            if sticker.access_hash is None:
+                sticker.access_hash = x.set.access_hash
+                sticker.save()
             directory = "{}/{}".format(MEDIA_PATH, x.set.id)
             if not os.path.exists(directory):
                 os.makedirs(directory)
@@ -243,29 +249,43 @@ class Telegram:
                     extension = "mp4"
                 elif x.set.animated:
                     extension = "json"
+                    fn = "{}/thumb/{}".format(MEDIA_PATH, x.set.id)
+                    if not os.path.exists(fn):
+                        os.makedirs(fn)
+                    fn = "{}/{}.png".format(fn, document.id)
+                    if not os.path.exists(fn):
+                        thumb = self.app.download_media(document_parsed.thumbs[0].file_id, in_memory=True)
+                        with open(fn, "wb") as binary_file:
+                            binary_file.write(bytes(thumb.getbuffer()))
                 else:
                     extension = "webp"
                 if extension:
-                    file = self.app.download_media(document_parsed.file_id, in_memory=True)
                     fn = "{}/{}.{}".format(directory, document.id, extension)
-                    with open(fn, "wb") as binary_file:
-                        if x.set.animated:
-                            binary_file.write(gzip.decompress(bytes(file.getbuffer())))
-                        else:
-                            binary_file.write(bytes(file.getbuffer()))
-                    StickerItem.objects.get_or_create(
-                        tg_id=document.id,
-                        defaults={
-                            "sticker": sticker,
-                            "path": "{}/{}.{}".format(x.set.id, document.id, extension)
-                        }
-                    )
+                    if not os.path.exists(fn):
+                        file = self.app.download_media(document_parsed.file_id, in_memory=True)
+                        with open(fn, "wb") as binary_file:
+                            if x.set.animated:
+                                binary_file.write(gzip.decompress(bytes(file.getbuffer())))
+                            else:
+                                binary_file.write(bytes(file.getbuffer()))
+                        StickerItem.objects.get_or_create(
+                            tg_id=document.id,
+                            defaults={
+                                "sticker": sticker,
+                                "path": "{}/{}.{}".format(x.set.id, document.id, extension)
+                            }
+                        )
             zip_folder(folder_path=directory, output_path="{}.zip".format(directory))
         except FloodWait as e:
             if e.value < 100:
                 print("Waiting: {}".format(e.value))
                 time.sleep(e.value + 3)
-                self.get_sticker_packer(sticker_id, access_hash, short_name)
+                self.get_sticker_packer(
+                    sticker_id=sticker_id,
+                    access_hash=access_hash,
+                    short_name=short_name,
+                    force=force
+                )
             else:
                 raise TelegramGreetLimit("get_sticker_packer")
 
@@ -296,7 +316,10 @@ class Telegram:
         )
         if type(x) is FoundStickerSets:
             for item in x.sets:
-                self.get_sticker_packer(item.set.id, item.set.access_hash)
+                self.get_sticker_packer(
+                    sticker_id=item.set.id,
+                    access_hash=item.set.access_hash
+                )
             if x.hash != 0:
                 self.search_sticker(query, x.hash)
 
